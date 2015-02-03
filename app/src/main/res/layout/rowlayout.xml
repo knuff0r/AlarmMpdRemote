@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<GridLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gridlayout"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:columnCount="3"
+    android:rowCount="2">
+
+    <TextView
+        android:id="@+id/tv_time"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_column="0"
+        android:layout_gravity="left"
+        android:layout_row="0"
+        android:text="13:37"
+        android:textStyle="bold" />
+
+    <Switch
+        android:id="@+id/sw_enable"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="onClick"
+        android:layout_column="2"
+        android:layout_gravity="right"
+        android:layout_row="0"
+        android:checked="true" />
+
+    <TextView
+        android:id="@+id/label2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_column="0"
+        android:layout_gravity="left"
+        android:layout_row="1"
+        android:text="name"
+        android:textColor="#ffff5ce6" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_column="1"
+        android:layout_row="1"
+        android:text="days" />
+
+    <ImageButton
+        android:id="@+id/bt_delete"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_column="2"
+        android:layout_gravity="right"
+        android:layout_row="1"
+        android:clickable="true"
+        android:onClick="onClick"
+        android:background="@null"
+        android:src="@drawable/ic_delete" />
+
+</GridLayout>
+
