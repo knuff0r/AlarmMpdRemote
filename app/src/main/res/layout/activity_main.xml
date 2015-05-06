@@ -21,8 +21,8 @@
         android:onClick="onClick"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:background="@drawable/roundbutton"
+        android:background="@null"
         android:gravity="center_vertical|center_horizontal"
-        android:src="@drawable/ic_add" />
+        android:src="@drawable/ic_alarm_add_white_48dp" />
 
 </RelativeLayout>

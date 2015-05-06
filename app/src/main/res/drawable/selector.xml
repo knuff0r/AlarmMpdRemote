@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true"
+        android:drawable="@color/switch_thumb_normal_material_dark"/> <!-- pressed state -->
+    <item android:state_focused="true"
+        android:drawable="@color/switch_thumb_normal_material_dark"/> <!-- focused state -->
+    <item android:drawable="@android:color/transparent"/> <!-- default state -->
+
+</selector>

@@ -2,9 +2,10 @@
 <resources>
 
     <string name="app_name">AlarmMpdRemote</string>
-    <string name="hello_world">Helloneger world!</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_settings">Settings</string>
+
+    <string name="content_wrong_settings">Wrong connection setttings </string>
 
 
     <string name="host">host</string>

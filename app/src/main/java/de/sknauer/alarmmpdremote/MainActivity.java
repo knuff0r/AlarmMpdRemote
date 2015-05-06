@@ -1,9 +1,11 @@
 package de.sknauer.alarmmpdremote;
 
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
@@ -12,17 +14,19 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.TimePicker;
 
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import java.io.BufferedReader;
@@ -31,8 +35,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
 
 import de.sknauer.alarmmpdremote.model.Alarm;
@@ -43,18 +45,43 @@ public class MainActivity extends ActionBarActivity {
     private ArrayList<Alarm> alarms;
     private AlarmArrayAdapter adapter;
 
+    private WrongSettingsDialog wsd;
+    private static Status status;
+    private Menu mymenu;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        alarms = new ArrayList<Alarm>();
+        alarms = new ArrayList<>();
         adapter = new AlarmArrayAdapter(this, alarms);
-
+        wsd = new WrongSettingsDialog();
+        status = Status.NOT_CONNECTED;
         final ListView listview = (ListView) findViewById(R.id.listview);
 
         listview.setAdapter(adapter);
 
 
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        new TestConnection().execute("bla");
+    }
+
+    public void stopCheckingAnimation()
+    {
+        if(mymenu!=null) {
+            // Get our refresh item from the menu
+            MenuItem m = mymenu.findItem(R.id.action_status);
+            if (m.getActionView() != null) {
+                // Remove the animation.
+                m.getActionView().clearAnimation();
+                m.setActionView(null);
+            }
+        }
     }
 
 
@@ -69,7 +96,7 @@ public class MainActivity extends ActionBarActivity {
             int minute = c.get(Calendar.MINUTE);
 
             // Create a new instance of TimePickerDialog and return it
-            return new TimePickerDialog(getActivity(), this, hour, minute,
+            return new TimePickerDialog(getActivity(), TimePickerDialog.THEME_HOLO_DARK, this, hour, minute,
                     DateFormat.is24HourFormat(getActivity()));
         }
 
@@ -82,6 +109,8 @@ public class MainActivity extends ActionBarActivity {
             }
         }
     }
+
+
 
     public void onClick(View v) {
         ListView lv = (ListView) findViewById(R.id.listview);
@@ -107,6 +136,76 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    public class WrongSettingsDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            // Use the Builder class for convenient dialog construction
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setMessage(R.string.content_wrong_settings)
+                    .setNeutralButton("Edit Settings", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                        }
+                    });
+            // Create the AlertDialog object and return it
+            return builder.create();
+        }
+    }
+
+
+    private class TestConnection extends AsyncTask<String, Integer, String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+            status = de.sknauer.alarmmpdremote.Status.CHECKING_CONNECTION;
+            //
+            invalidateOptionsMenu();
+            JSch jsch = new JSch();
+            //final SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
+            SharedPreferences sharedPref =
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            Session session = null;
+            try {
+                session = jsch.getSession(sharedPref.getString("username", ""),
+                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
+            } catch (JSchException e) {
+                Log.e("bla", "1st:" + e.getMessage());
+                wsd.show(getFragmentManager(), "wrongsettings");
+            }
+            session.setPassword(sharedPref.getString("password", ""));
+
+            //session.setPassword("hanf#55");
+
+            // Avoid asking for key confirmation
+            Properties prop = new Properties();
+            prop.put("StrictHostKeyChecking", "no");
+            session.setConfig(prop);
+
+            try {
+                session.connect();
+                if(wsd.isVisible())
+                    wsd.dismiss();
+                status = de.sknauer.alarmmpdremote.Status.CONNECTED;
+            } catch (JSchException e) {
+                Log.e("bla", "2st:" + e.getMessage());
+                status = de.sknauer.alarmmpdremote.Status.NOT_CONNECTED;
+                wsd.show(getFragmentManager(), "wrongsettings");
+            }
+            return "kk";
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    invalidateOptionsMenu();
+                    stopCheckingAnimation();
+
+                }
+            });
+        }
+    }
 
     private class ExecSSHAlarmTask extends AsyncTask<String, Integer, String> {
         protected String doInBackground(String... urls) {
@@ -116,7 +215,7 @@ public class MainActivity extends ActionBarActivity {
                 SharedPreferences sharedPref =
                         PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
                 Session session = jsch.getSession(sharedPref.getString("username", ""),
-                        sharedPref.getString("host", ""),sharedPref.getInt("port", 22));
+                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
                 session.setPassword(sharedPref.getString("password", ""));
 
                 //session.setPassword("hanf#55");
@@ -148,7 +247,7 @@ public class MainActivity extends ActionBarActivity {
                         cronfile.append("#");
                     cronfile.append(a.getMinute() + " " + a.getHour() + " ");
                     cronfile.append("* * * ");
-                    cronfile.append("mpc clear;mpc volume 80;mpc random on;mpc repeat on;");
+                    cronfile.append("mpc enable 1;mpc disable 4;mpc clear;mpc volume 80;mpc random on;mpc repeat on;");
                     cronfile.append("mpc load " + a.getPlaylist() + ";");
                     cronfile.append("/home/" + sharedPref.getString("username", "") + "/mpc-fade ");
                     cronfile.append("75 600\n");
@@ -172,8 +271,9 @@ public class MainActivity extends ActionBarActivity {
                 return "okok";
 
             } catch (Exception ex) {
-                String err = (ex.getMessage() == null) ? "SD Card failed" : ex.getMessage();
+                String err = (ex.getMessage() == null) ? "no error Card failed" : ex.getMessage();
                 Log.e("sdcard-err2:", err);
+
             }
             return "";
         }
@@ -191,6 +291,46 @@ public class MainActivity extends ActionBarActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        mymenu = menu;
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem item= menu.findItem(R.id.action_status);
+        //stopCheckingAnimation();
+        if(item.getActionView()!=null)
+        {
+            // Remove the animation.
+            Log.d("bla","stop anim");
+            item.getActionView().clearAnimation();
+            item.setActionView(null);
+        }
+        //depending on your conditions, either enable/disable
+        switch (status) {
+            case NOT_CONNECTED:
+                item.setIcon(R.drawable.ic_error_red_48dp);
+                Log.d("bla", "set not conncted icon");
+                break;
+            case CHECKING_CONNECTION:
+                //item.setIcon(R.drawable.ic_autorenew_white_48dp);
+                // Do animation start
+                LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                ImageView iv = (ImageView)inflater.inflate(R.layout.iv_check, null);
+                Animation rotation = AnimationUtils.loadAnimation(MainActivity.this, R.anim.rotate_check);
+                rotation.setRepeatCount(Animation.INFINITE);
+                iv.startAnimation(rotation);
+                item.setActionView(iv);
+                Log.d("bla", "set anim");
+                break;
+            case CONNECTED:
+                item.setIcon(R.drawable.ic_done_all_white_48dp);
+                Log.d("bla", "set conncted icon");
+                break;
+            default: break;
+
+        }
+        super.onPrepareOptionsMenu(menu);
         return true;
     }
 
