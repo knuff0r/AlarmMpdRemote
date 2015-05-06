@@ -3,6 +3,7 @@ package de.sknauer.alarmmpdremote;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
+import android.app.FragmentManager;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -46,7 +47,7 @@ public class MainActivity extends ActionBarActivity {
     private AlarmArrayAdapter adapter;
 
     private WrongSettingsDialog wsd;
-    private static Status status;
+    static Status status;
     private Menu mymenu;
 
     @Override
@@ -56,6 +57,7 @@ public class MainActivity extends ActionBarActivity {
         alarms = new ArrayList<>();
         adapter = new AlarmArrayAdapter(this, alarms);
         wsd = new WrongSettingsDialog();
+        wsd.setCancelable(false);
         status = Status.NOT_CONNECTED;
         final ListView listview = (ListView) findViewById(R.id.listview);
 
@@ -71,9 +73,8 @@ public class MainActivity extends ActionBarActivity {
         new TestConnection().execute("bla");
     }
 
-    public void stopCheckingAnimation()
-    {
-        if(mymenu!=null) {
+    public void stopCheckingAnimation() {
+        if (mymenu != null) {
             // Get our refresh item from the menu
             MenuItem m = mymenu.findItem(R.id.action_status);
             if (m.getActionView() != null) {
@@ -111,7 +112,6 @@ public class MainActivity extends ActionBarActivity {
     }
 
 
-
     public void onClick(View v) {
         ListView lv = (ListView) findViewById(R.id.listview);
         int position = lv.getPositionForView(v);
@@ -136,15 +136,24 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    private boolean showDialog() {
+        FragmentManager manager = getFragmentManager();
+        WrongSettingsDialog dialogActivity;
+        dialogActivity = new WrongSettingsDialog();
+        dialogActivity.show(manager, "WSD");
+        return true;
+    }
+
     public class WrongSettingsDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
             // Use the Builder class for convenient dialog construction
             AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
             builder.setMessage(R.string.content_wrong_settings)
+                    .setCancelable(false)
                     .setNeutralButton("Edit Settings", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int id) {
-                            startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                            startActivity(new Intent(MainActivity.this, ConnectionSettingsActivity.class));
                         }
                     });
             // Create the AlertDialog object and return it
@@ -154,6 +163,19 @@ public class MainActivity extends ActionBarActivity {
 
 
     private class TestConnection extends AsyncTask<String, Integer, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    findViewById(R.id.listview).setEnabled(false);
+                    findViewById(R.id.bt_add).setEnabled(false);
+                }
+            });
+        }
+
 
         @Override
         protected String doInBackground(String... params) {
@@ -183,7 +205,7 @@ public class MainActivity extends ActionBarActivity {
 
             try {
                 session.connect();
-                if(wsd.isVisible())
+                if (wsd.isVisible())
                     wsd.dismiss();
                 status = de.sknauer.alarmmpdremote.Status.CONNECTED;
             } catch (JSchException e) {
@@ -199,6 +221,11 @@ public class MainActivity extends ActionBarActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
+                    if (status == de.sknauer.alarmmpdremote.Status.CONNECTED) {
+
+                        findViewById(R.id.listview).setEnabled(true);
+                        findViewById(R.id.bt_add).setEnabled(true);
+                    }
                     invalidateOptionsMenu();
                     stopCheckingAnimation();
 
@@ -297,12 +324,11 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        MenuItem item= menu.findItem(R.id.action_status);
+        MenuItem item = menu.findItem(R.id.action_status);
         //stopCheckingAnimation();
-        if(item.getActionView()!=null)
-        {
+        if (item.getActionView() != null) {
             // Remove the animation.
-            Log.d("bla","stop anim");
+            Log.d("bla", "stop anim");
             item.getActionView().clearAnimation();
             item.setActionView(null);
         }
@@ -315,8 +341,8 @@ public class MainActivity extends ActionBarActivity {
             case CHECKING_CONNECTION:
                 //item.setIcon(R.drawable.ic_autorenew_white_48dp);
                 // Do animation start
-                LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                ImageView iv = (ImageView)inflater.inflate(R.layout.iv_check, null);
+                LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                ImageView iv = (ImageView) inflater.inflate(R.layout.iv_check, null);
                 Animation rotation = AnimationUtils.loadAnimation(MainActivity.this, R.anim.rotate_check);
                 rotation.setRepeatCount(Animation.INFINITE);
                 iv.startAnimation(rotation);
@@ -327,7 +353,8 @@ public class MainActivity extends ActionBarActivity {
                 item.setIcon(R.drawable.ic_done_all_white_48dp);
                 Log.d("bla", "set conncted icon");
                 break;
-            default: break;
+            default:
+                break;
 
         }
         super.onPrepareOptionsMenu(menu);
@@ -343,7 +370,7 @@ public class MainActivity extends ActionBarActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
+            startActivity(new Intent(this, ConnectionSettingsActivity.class));
             return true;
         }
 
