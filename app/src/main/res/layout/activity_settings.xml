@@ -1,97 +1,128 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:orientation="vertical"
+    android:paddingBottom="@dimen/activity_vertical_margin"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:paddingTop="@dimen/activity_vertical_margin">
 
     <TextView
+        android:id="@+id/tv_host"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="Host"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_host" />
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
     <TextView
+        android:id="@+id/tv_sub_host"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="SHH- and MPD-Server Hostname or IP-Address"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_sub_host" />
+        android:textAppearance="?android:attr/textAppearanceSmall" />
+
     <View
         android:layout_width="fill_parent"
         android:layout_height="1dp"
         android:layout_marginBottom="10dp"
         android:layout_marginTop="10dp"
-        android:background="@android:color/white"/>
+        android:background="@android:color/white" />
 
     <TextView
+        android:id="@+id/tv_port"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="Port"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_port" />
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
     <TextView
+        android:id="@+id/tv_sub_port"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="SHH-Server port (Default:22)"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_sub_port" />
+        android:textAppearance="?android:attr/textAppearanceSmall" />
+
     <View
         android:layout_width="fill_parent"
         android:layout_height="1dp"
         android:layout_marginBottom="10dp"
         android:layout_marginTop="10dp"
-        android:background="@android:color/white"/>
+        android:background="@android:color/white" />
 
     <TextView
+        android:id="@+id/tv_username"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="Username"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_username" />
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
     <TextView
+        android:id="@+id/tv_sub_username"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="Username for the SHH-Server"
         android:clickable="true"
         android:onClick="onClick"
-        android:id="@+id/tv_sub_username" />
+        android:text="Username for the SHH-Server"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
+
     <View
         android:layout_width="fill_parent"
         android:layout_height="1dp"
         android:layout_marginBottom="10dp"
         android:layout_marginTop="10dp"
-        android:background="@android:color/white"/>
+        android:background="@android:color/white" />
 
     <TextView
+        android:id="@+id/tv_password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:clickable="true"
+        android:onClick="onClick"
         android:text="Password"
-        android:clickable="true"
-        android:onClick="onClick"
-        android:id="@+id/tv_password" />
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
     <TextView
+        android:id="@+id/tv_sub_password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:text="Password for the SHH-Server"
         android:clickable="true"
         android:onClick="onClick"
-        android:id="@+id/tv_sub_password" />
+        android:text="Password for the SHH-Server"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="1dp"
+        android:layout_marginBottom="10dp"
+        android:layout_marginTop="10dp"
+        android:background="@android:color/white" />
+
+    <TextView
+        android:id="@+id/tv_key"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:onClick="onClick"
+        android:text="Key"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <TextView
+        android:id="@+id/tv_sub_key"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:onClick="onClick"
+        android:text="Private Key File for the SHH-Server"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 </LinearLayout>

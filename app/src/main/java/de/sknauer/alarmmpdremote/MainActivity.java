@@ -5,12 +5,17 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.app.FragmentManager;
 import android.app.TimePickerDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.text.format.DateFormat;
@@ -24,6 +29,7 @@ import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
@@ -32,6 +38,7 @@ import com.jcraft.jsch.Session;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -63,8 +70,33 @@ public class MainActivity extends ActionBarActivity {
 
         listview.setAdapter(adapter);
 
+        this.registerReceiver(this.mConnReceiver,
+                new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+
+
 
     }
+
+    private BroadcastReceiver mConnReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            boolean noConnectivity = intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
+            String reason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
+            boolean isFailover = intent.getBooleanExtra(ConnectivityManager.EXTRA_IS_FAILOVER, false);
+
+            NetworkInfo currentNetworkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
+            NetworkInfo otherNetworkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_OTHER_NETWORK_INFO);
+
+            if(currentNetworkInfo.isConnected()){
+                Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show();
+                new MpcTogglePlayTask().execute("play");
+            }else{
+                Toast.makeText(getApplicationContext(), "Disconnected", Toast.LENGTH_LONG).show();
+                new MpcTogglePlayTask().execute("pause");
+            }
+        }
+    };
+
+
 
 
     @Override
@@ -194,7 +226,12 @@ public class MainActivity extends ActionBarActivity {
                 Log.e("bla", "1st:" + e.getMessage());
                 wsd.show(getFragmentManager(), "wrongsettings");
             }
-            session.setPassword(sharedPref.getString("password", ""));
+            //session.setPassword(sharedPref.getString("password", ""));
+            try {
+                jsch.addIdentity(sharedPref.getString(getString(R.string.key),""));
+            } catch (JSchException e) {
+                Log.e("Bla",e.toString());
+            }
 
             //session.setPassword("hanf#55");
 
@@ -310,6 +347,64 @@ public class MainActivity extends ActionBarActivity {
 
         protected void onPostExecute(String result) {
             Log.d("bla", result);
+        }
+    }
+
+    private class MpcTogglePlayTask extends AsyncTask<String, Integer, String> {
+        protected String doInBackground(String... params) {
+            try {
+                JSch jsch = new JSch();
+                //final SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
+                SharedPreferences sharedPref =
+                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                Session session = jsch.getSession(sharedPref.getString("username", ""),
+                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
+                session.setPassword(sharedPref.getString("password", ""));
+
+                // Avoid asking for key confirmation
+                Properties prop = new Properties();
+                prop.put("StrictHostKeyChecking", "no");
+                session.setConfig(prop);
+
+                session.connect();
+
+                // SSH Channel
+                ChannelExec channelssh = (ChannelExec)
+                        session.openChannel("exec");
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                channelssh.setOutputStream(baos);
+
+                InputStream inputStream = channelssh.getInputStream();
+
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                StringBuilder stringBuilder = new StringBuilder();
+                String line;
+
+
+                // Execute command
+                if(params[0].equals("play")) {
+                    channelssh.setCommand("mpc play"); Log.d("bla","play"); }
+                else if(params[0].equals("pause")) {
+                    channelssh.setCommand("mpc pause"); Log.d("bla","pause"); }
+
+
+
+
+                channelssh.connect();
+                while ((line = bufferedReader.readLine()) != null) {
+                    stringBuilder.append(line);
+                    stringBuilder.append('\n');
+                }
+
+                channelssh.disconnect();
+
+                return "okok";
+
+            } catch (Exception ex) {
+                Log.e("bla",ex.toString());
+
+            }
+            return "";
         }
     }
 

@@ -4,18 +4,22 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.method.PasswordTransformationMethod;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+
+import java.io.File;
 
 
 public class ConnectionSettingsActivity extends ActionBarActivity {
@@ -48,6 +52,23 @@ public class ConnectionSettingsActivity extends ActionBarActivity {
             case R.id.tv_sub_password:
                 createDialog("password");
                 break;
+            case R.id.tv_key:
+            case R.id.tv_sub_key:
+                final SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                final SharedPreferences.Editor editor = sharedPref.edit();
+
+                File mPath = new File(Environment.getExternalStorageDirectory() + "");
+                FileDialog fileDialog = new FileDialog(this, mPath);
+                fileDialog.addFileListener(new FileDialog.FileSelectedListener() {
+                    public void fileSelected(File file) {
+                        Log.d(getClass().getName(), "selected file " + file.toString());
+                        editor.putString(getString(R.string.key),file.toString());
+                        editor.commit();
+                    }
+                });
+                fileDialog.showDialog();
+                //createDialog("key");
+                break;
             default:
                 break;
 
@@ -78,7 +99,7 @@ public class ConnectionSettingsActivity extends ActionBarActivity {
                 value = sharedPref.getString(getString(R.string.host), "");
                 break;
             case "port":
-                port = sharedPref.getInt("port", 22);
+                port = sharedPref.getInt(getString(R.string.port), 22);
                 break;
             case "username":
                 value = sharedPref.getString(getString(R.string.username), "");
@@ -87,6 +108,9 @@ public class ConnectionSettingsActivity extends ActionBarActivity {
                 value = sharedPref.getString(getString(R.string.password), "");
                 et_input.setTransformationMethod(PasswordTransformationMethod.getInstance());
                 et_input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                break;
+            case "key":
+                value = sharedPref.getString(getString(R.string.key), "");
                 break;
             default:
                 break;
@@ -112,6 +136,9 @@ public class ConnectionSettingsActivity extends ActionBarActivity {
                         break;
                     case "password":
                         editor.putString(getString(R.string.password), value);
+                        break;
+                    case "key":
+                        editor.putString(getString(R.string.key), value);
                         break;
                     default:
                         break;
