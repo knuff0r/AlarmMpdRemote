@@ -1,22 +1,16 @@
 package de.sknauer.alarmmpdremote;
 
 import android.content.Context;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
 
 import de.sknauer.alarmmpdremote.model.Alarm;
 
-/**
- * Created by sebastian on 28.01.15.
- */
 public class AlarmArrayAdapter extends ArrayAdapter<Alarm> {
 
     private final Context context;
@@ -32,7 +26,7 @@ public class AlarmArrayAdapter extends ArrayAdapter<Alarm> {
     public View getView(int position, View convertView, ViewGroup parent) {
 
         Alarm alarm = alarms.get(position);
-        View rowView = null;
+        View rowView;
 
 
 
@@ -46,7 +40,11 @@ public class AlarmArrayAdapter extends ArrayAdapter<Alarm> {
             rowView = convertView;
         }
         TextView tv_time = (TextView) rowView.findViewById(R.id.tv_time);
-        tv_time.setText(alarm.getHour()+":"+alarm.getMinute());
+        if(alarm.getMinute()<10)
+            tv_time.setText(alarm.getHour()+":0"+alarm.getMinute());
+        else
+            tv_time.setText(alarm.getHour()+":"+alarm.getMinute());
+
 
 
 

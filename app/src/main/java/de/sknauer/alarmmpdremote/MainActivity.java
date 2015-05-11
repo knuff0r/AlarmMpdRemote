@@ -1,21 +1,16 @@
 package de.sknauer.alarmmpdremote;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.app.FragmentManager;
 import android.app.TimePickerDialog;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.text.format.DateFormat;
@@ -24,12 +19,12 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TimePicker;
-import android.widget.Toast;
 
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
@@ -38,7 +33,7 @@ import com.jcraft.jsch.Session;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -50,12 +45,16 @@ import de.sknauer.alarmmpdremote.model.Alarm;
 
 public class MainActivity extends ActionBarActivity {
 
+    private static final String TAG = MainActivity.class.getSimpleName();
+
     private ArrayList<Alarm> alarms;
     private AlarmArrayAdapter adapter;
 
     private WrongSettingsDialog wsd;
     static Status status;
     private Menu mymenu;
+
+    private Session session = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,39 +69,14 @@ public class MainActivity extends ActionBarActivity {
 
         listview.setAdapter(adapter);
 
-        this.registerReceiver(this.mConnReceiver,
-                new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
-
 
 
     }
 
-    private BroadcastReceiver mConnReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            boolean noConnectivity = intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
-            String reason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
-            boolean isFailover = intent.getBooleanExtra(ConnectivityManager.EXTRA_IS_FAILOVER, false);
-
-            NetworkInfo currentNetworkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
-            NetworkInfo otherNetworkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_OTHER_NETWORK_INFO);
-
-            if(currentNetworkInfo.isConnected()){
-                Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show();
-                new MpcTogglePlayTask().execute("play");
-            }else{
-                Toast.makeText(getApplicationContext(), "Disconnected", Toast.LENGTH_LONG).show();
-                new MpcTogglePlayTask().execute("pause");
-            }
-        }
-    };
-
-
-
-
     @Override
     protected void onResume() {
         super.onResume();
-        new TestConnection().execute("bla");
+        new ConnectTask().execute("bla");
     }
 
     public void stopCheckingAnimation() {
@@ -118,6 +92,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
 
+    @SuppressLint("ValidFragment")
     public class TimePickerFragment extends DialogFragment
             implements TimePickerDialog.OnTimeSetListener {
 
@@ -149,8 +124,6 @@ public class MainActivity extends ActionBarActivity {
         int position = lv.getPositionForView(v);
         switch (v.getId()) {
             case R.id.bt_delete:
-                lv = (ListView) findViewById(R.id.listview);
-                position = lv.getPositionForView(v);
                 alarms.remove(position);
                 adapter.notifyDataSetChanged();
                 break;
@@ -159,8 +132,6 @@ public class MainActivity extends ActionBarActivity {
                 newFragment.show(getFragmentManager(), "timePicker");
                 break;
             case R.id.sw_enable:
-                lv = (ListView) findViewById(R.id.listview);
-                position = lv.getPositionForView(v);
                 alarms.get(position).toggle();
 
             default:
@@ -168,14 +139,7 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    private boolean showDialog() {
-        FragmentManager manager = getFragmentManager();
-        WrongSettingsDialog dialogActivity;
-        dialogActivity = new WrongSettingsDialog();
-        dialogActivity.show(manager, "WSD");
-        return true;
-    }
-
+    @SuppressLint("ValidFragment")
     public class WrongSettingsDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -193,8 +157,57 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    private Session sshConnect() {
+        status = de.sknauer.alarmmpdremote.Status.CHECKING_CONNECTION;
+        invalidateOptionsMenu();
 
-    private class TestConnection extends AsyncTask<String, Integer, String> {
+        JSch jsch = new JSch();
+        SharedPreferences sharedPref =
+                PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+
+        String host = sharedPref.getString(getString(R.string.host), "127.0.0.1");
+        String username = sharedPref.getString(getString(R.string.username), "");
+        int port = sharedPref.getInt(getString(R.string.port), 22);
+        String password = sharedPref.getString(getString(R.string.password), "");
+        String key = sharedPref.getString(getString(R.string.key), "no_key_specified");
+
+        Session session;
+        try {
+            assert host != null;
+            session = jsch.getSession(username, host, port);
+        } catch (JSchException e) {
+            Log.e(TAG, "session:" + e.getMessage());
+            return null;
+        }
+
+        try {
+            jsch.addIdentity(key);
+        } catch (JSchException e) {
+            Log.e(TAG, "try add identity key " + e.getMessage() + " - using pwd auth");
+            session.setPassword(password);
+        }
+
+
+        // Avoid asking for key confirmation
+        Properties prop = new Properties();
+        prop.put("StrictHostKeyChecking", "no");
+        session.setConfig(prop);
+
+        try {
+            session.connect();
+            if (wsd.isVisible())
+                wsd.dismiss();
+            status = de.sknauer.alarmmpdremote.Status.CONNECTED;
+        } catch (JSchException e) {
+            Log.e(TAG, "try connect: " + e.getMessage());
+            status = de.sknauer.alarmmpdremote.Status.NOT_CONNECTED;
+            wsd.show(getFragmentManager(), "wrongsettings");
+        }
+
+        return session;
+    }
+
+    private class ConnectTask extends AsyncTask<String, Integer, String> {
 
         @Override
         protected void onPreExecute() {
@@ -211,46 +224,10 @@ public class MainActivity extends ActionBarActivity {
 
         @Override
         protected String doInBackground(String... params) {
-            status = de.sknauer.alarmmpdremote.Status.CHECKING_CONNECTION;
-            //
-            invalidateOptionsMenu();
-            JSch jsch = new JSch();
-            //final SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-            SharedPreferences sharedPref =
-                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            Session session = null;
-            try {
-                session = jsch.getSession(sharedPref.getString("username", ""),
-                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
-            } catch (JSchException e) {
-                Log.e("bla", "1st:" + e.getMessage());
-                wsd.show(getFragmentManager(), "wrongsettings");
-            }
-            //session.setPassword(sharedPref.getString("password", ""));
-            try {
-                jsch.addIdentity(sharedPref.getString(getString(R.string.key),""));
-            } catch (JSchException e) {
-                Log.e("Bla",e.toString());
-            }
 
-            //session.setPassword("hanf#55");
+            session = sshConnect();
 
-            // Avoid asking for key confirmation
-            Properties prop = new Properties();
-            prop.put("StrictHostKeyChecking", "no");
-            session.setConfig(prop);
-
-            try {
-                session.connect();
-                if (wsd.isVisible())
-                    wsd.dismiss();
-                status = de.sknauer.alarmmpdremote.Status.CONNECTED;
-            } catch (JSchException e) {
-                Log.e("bla", "2st:" + e.getMessage());
-                status = de.sknauer.alarmmpdremote.Status.NOT_CONNECTED;
-                wsd.show(getFragmentManager(), "wrongsettings");
-            }
-            return "kk";
+            return "k";
         }
 
         @Override
@@ -272,142 +249,78 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private class ExecSSHAlarmTask extends AsyncTask<String, Integer, String> {
+
         protected String doInBackground(String... urls) {
+
+            SharedPreferences sharedPref =
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+
+            // SSH Channel
+            ChannelExec channelssh;
             try {
-                JSch jsch = new JSch();
-                //final SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-                SharedPreferences sharedPref =
-                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-                Session session = jsch.getSession(sharedPref.getString("username", ""),
-                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
-                session.setPassword(sharedPref.getString("password", ""));
-
-                //session.setPassword("hanf#55");
-
-                // Avoid asking for key confirmation
-                Properties prop = new Properties();
-                prop.put("StrictHostKeyChecking", "no");
-                session.setConfig(prop);
-
-                session.connect();
-
-                // SSH Channel
-                ChannelExec channelssh = (ChannelExec)
+                channelssh = (ChannelExec)
                         session.openChannel("exec");
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                channelssh.setOutputStream(baos);
+            } catch (JSchException e) {
+                Log.e(TAG, e.getMessage());
+                return "openChannelError";
+            }
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            channelssh.setOutputStream(baos);
 
-                InputStream inputStream = channelssh.getInputStream();
+            InputStream inputStream;
+            try {
+                inputStream = channelssh.getInputStream();
+            } catch (IOException e) {
+                Log.e(TAG, e.getMessage());
+                return "inputStreamError";
+            }
 
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder stringBuilder = new StringBuilder();
-                String line;
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder stringBuilder = new StringBuilder();
+            String line;
 
-                StringBuilder cronfile = new StringBuilder();
-                cronfile.append("##Alarms\n");
-                for (Alarm a : alarms) {
-                    cronfile.append("#" + a.getName() + "\n");
-                    if (!a.isEnabled())
-                        cronfile.append("#");
-                    cronfile.append(a.getMinute() + " " + a.getHour() + " ");
-                    cronfile.append("* * * ");
-                    cronfile.append("mpc enable 1;mpc disable 4;mpc clear;mpc volume 80;mpc random on;mpc repeat on;");
-                    cronfile.append("mpc load " + a.getPlaylist() + ";");
-                    cronfile.append("/home/" + sharedPref.getString("username", "") + "/mpc-fade ");
-                    cronfile.append("75 600\n");
+            StringBuilder cronfile = new StringBuilder();
+            cronfile.append("##BEGIN AlarmMpdRemote\n");
+            for (Alarm a : alarms) {
+                cronfile.append("#").append(a.getName()).append("\n");
+                if (!a.isEnabled())
+                    cronfile.append("#");
+                cronfile.append(a.getMinute()).append(" ").append(a.getHour()).append(" ");
+                cronfile.append("* * * ");
+                cronfile.append("mpc enable 1;mpc disable 4;mpc clear;mpc volume 80;mpc random on;mpc repeat on;");
+                cronfile.append("mpc load ").append(a.getPlaylist()).append(";");
+                cronfile.append("/home/").append(sharedPref.getString("username", "")).append("/mpc-fade ");
+                cronfile.append("75 600\n");
+            }
+            cronfile.append("##END AlarmMpdRemote\n");
+            // Execute command
+            String command = "echo '" + cronfile.toString() + "'>cronfile;crontab cronfile";
+            Log.d("bla", command);
+            channelssh.setCommand(command);
 
 
-                }
-                // Execute command
-                String command = "echo '" + cronfile.toString() + "'>cronfile;crontab cronfile";
-                Log.d("bla", command);
-                channelssh.setCommand(command);
-
-
+            try {
                 channelssh.connect();
+            } catch (JSchException e) {
+                e.printStackTrace();
+            }
+            try {
                 while ((line = bufferedReader.readLine()) != null) {
                     stringBuilder.append(line);
                     stringBuilder.append('\n');
                 }
-
-                channelssh.disconnect();
-
-                return "okok";
-
-            } catch (Exception ex) {
-                String err = (ex.getMessage() == null) ? "no error Card failed" : ex.getMessage();
-                Log.e("sdcard-err2:", err);
-
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            return "";
-        }
+            Log.d(TAG,stringBuilder.toString());
 
-        protected void onProgressUpdate(Integer... progress) {
-        }
+            channelssh.disconnect();
 
-        protected void onPostExecute(String result) {
-            Log.d("bla", result);
+            return "okok";
+
+
         }
     }
-
-    private class MpcTogglePlayTask extends AsyncTask<String, Integer, String> {
-        protected String doInBackground(String... params) {
-            try {
-                JSch jsch = new JSch();
-                //final SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-                SharedPreferences sharedPref =
-                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-                Session session = jsch.getSession(sharedPref.getString("username", ""),
-                        sharedPref.getString("host", ""), sharedPref.getInt("port", 22));
-                session.setPassword(sharedPref.getString("password", ""));
-
-                // Avoid asking for key confirmation
-                Properties prop = new Properties();
-                prop.put("StrictHostKeyChecking", "no");
-                session.setConfig(prop);
-
-                session.connect();
-
-                // SSH Channel
-                ChannelExec channelssh = (ChannelExec)
-                        session.openChannel("exec");
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                channelssh.setOutputStream(baos);
-
-                InputStream inputStream = channelssh.getInputStream();
-
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder stringBuilder = new StringBuilder();
-                String line;
-
-
-                // Execute command
-                if(params[0].equals("play")) {
-                    channelssh.setCommand("mpc play"); Log.d("bla","play"); }
-                else if(params[0].equals("pause")) {
-                    channelssh.setCommand("mpc pause"); Log.d("bla","pause"); }
-
-
-
-
-                channelssh.connect();
-                while ((line = bufferedReader.readLine()) != null) {
-                    stringBuilder.append(line);
-                    stringBuilder.append('\n');
-                }
-
-                channelssh.disconnect();
-
-                return "okok";
-
-            } catch (Exception ex) {
-                Log.e("bla",ex.toString());
-
-            }
-            return "";
-        }
-    }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -437,7 +350,7 @@ public class MainActivity extends ActionBarActivity {
                 //item.setIcon(R.drawable.ic_autorenew_white_48dp);
                 // Do animation start
                 LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                ImageView iv = (ImageView) inflater.inflate(R.layout.iv_check, null);
+                ImageView iv = (ImageView) inflater.inflate(R.layout.iv_check, (ViewGroup) item.getActionView());
                 Animation rotation = AnimationUtils.loadAnimation(MainActivity.this, R.anim.rotate_check);
                 rotation.setRepeatCount(Animation.INFINITE);
                 iv.startAnimation(rotation);
