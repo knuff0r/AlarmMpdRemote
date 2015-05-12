@@ -8,10 +8,11 @@
     <string name="content_wrong_settings">Wrong connection setttings </string>
 
 
-    <string name="host">host</string>
-    <string name="port">port</string>
-    <string name="username">username</string>
-    <string name="password">password</string>
-    <string name="key">keyfile</string>
+    <string name="host">Host</string>
+    <string name="port">Port</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="key">Key</string>
+    <string name="stars">****</string>
 
 </resources>

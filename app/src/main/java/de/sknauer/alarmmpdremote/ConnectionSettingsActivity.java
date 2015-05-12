@@ -13,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.io.File;
 
@@ -20,12 +21,32 @@ import java.io.File;
 public class ConnectionSettingsActivity extends ActionBarActivity {
 
 
+    private TextView tv_sub_host;
+    private TextView tv_sub_port;
+    private TextView tv_sub_username;
+    private TextView tv_sub_key;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
+        tv_sub_host = (TextView) findViewById(R.id.tv_sub_host);
+        tv_sub_port = (TextView) findViewById(R.id.tv_sub_port);
+        tv_sub_username = (TextView) findViewById(R.id.tv_sub_username);
+        tv_sub_key = (TextView) findViewById(R.id.tv_sub_key);
 
+        initSubtexts();
+
+    }
+
+    private void initSubtexts(){
+        final SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        tv_sub_host.setText(sharedPref.getString(getString(R.string.host),"127.0.0.1"));
+        tv_sub_port.setText(""+sharedPref.getInt(getString(R.string.port),22));
+        tv_sub_username.setText(sharedPref.getString(getString(R.string.username),""));
+        tv_sub_key.setText(sharedPref.getString(getString(R.string.key),""));
     }
 
     public void onClick(View v) {
@@ -164,30 +185,4 @@ public class ConnectionSettingsActivity extends ActionBarActivity {
 
     }
 
-
-
-
-/*
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_settings, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-    */
 }

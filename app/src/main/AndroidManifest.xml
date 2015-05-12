@@ -23,6 +23,7 @@
         </activity>
         <activity
             android:name=".ConnectionSettingsActivity"
+            android:parentActivityName=".MainActivity"
             android:label="@string/title_activity_settings" >
         </activity>
     </application>
